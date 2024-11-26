@@ -10,7 +10,7 @@ export default function SignIn() {
   const handleInstagramSignIn = async () => {
     try {
       setLoading(true);
-      window.location.href = 'https://www.instagram.com/oauth/authorize?enable_fb_login=0&force_authentication=1&client_id=961047515841608&redirect_uri=https://xebomznmhn.loclx.io/api/auth/callback&response_type=code&scope=instagram_business_basic%2Cinstagram_business_manage_messages%2Cinstagram_business_manage_comments%2Cinstagram_business_content_publish';
+      window.location.href = `https://www.instagram.com/oauth/authorize?enable_fb_login=0&force_authentication=1&client_id=${process.env.NEXT_PUBLIC_INSTAGRAM_APP_ID}&redirect_uri=${process.env.NEXT_PUBLIC_INSTAGRAM_REDIRECT_URI}&response_type=code&scope=instagram_business_basic%2Cinstagram_business_manage_messages%2Cinstagram_business_manage_comments%2Cinstagram_business_content_publish`;
     } catch (error) {
       console.error(error);
     } finally {
