@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { FirebaseProvider } from "@/context/firebaseProvider";
+// import { FirebaseProvider } from "@/context/firebaseProvider";
 import { Toaster } from "sonner";
 
 
@@ -19,11 +19,11 @@ export default function RootLayout({
       <body
         className={`font-sans antialiased`}
       >
-        <FirebaseProvider>
+        {/* <FirebaseProvider> */}
 
-          {children}
-          <Toaster />
-        </FirebaseProvider>
+            {children}
+        <Toaster />
+        {/* </FirebaseProvider> */}
       </body>
     </html>
   );
