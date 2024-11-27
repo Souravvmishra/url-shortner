@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { firestore } from '@/services/firebase';
+import { doc, setDoc } from 'firebase/firestore';
 
 // Get environment variables
 const APP_ID = process.env.INSTAGRAM_APP_ID;
@@ -44,8 +46,20 @@ export async function GET(request: NextRequest) {
       throw new Error('No access token received from Instagram');
     }
 
+    // Get user details from Instagram
+    const userResponse = await fetch(`https://graph.instagram.com/me?fields=id,username&access_token=${data.access_token}`);
+    const userData = await userResponse.json();
+
+    // Save user details to Firestore
+    const userRef = doc(firestore, 'instagram_users', userData.id);
+    await setDoc(userRef, {
+      id: userData.id,
+      username: userData.username,
+      access_token: data.access_token,
+      last_updated: new Date().toISOString()
+    }, { merge: true });
+
     // Redirect to frontend with access token as URL parameter
-    // The frontend will handle storing it in localStorage
     if (!FRONTEND_URL) {
       throw new Error('FRONTEND_URL environment variable is not set');
     }
