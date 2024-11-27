@@ -27,6 +27,29 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
+  const savePost = async (post: UserData['media'][0]) => {
+    try {
+      const accessToken = localStorage.getItem('instagram_access_token');
+      const response = await fetch('/api/save-post', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`
+        },
+        body: JSON.stringify(post)
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to save post');
+      }
+      
+      alert('Post saved successfully!');
+    } catch (err) {
+      console.error('Error saving post:', err);
+      alert('Failed to save post');
+    }
+  };
+
   useEffect(() => {
     const fetchUserData = async () => {
       try {
@@ -102,14 +125,22 @@ export default function Home() {
                 />
                 <div className="p-4">
                   <p className="text-sm line-clamp-2">{item.caption}</p>
-                  <a 
-                    href={item.permalink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-500 text-sm mt-2 block"
-                  >
-                    View on Instagram
-                  </a>
+                  <div className="flex justify-between items-center mt-2">
+                    <a 
+                      href={item.permalink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-500 text-sm"
+                    >
+                      View on Instagram
+                    </a>
+                    <button
+                      onClick={() => savePost(item)}
+                      className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-1 rounded text-sm transition-colors"
+                    >
+                      Look at this post
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}

@@ -62,20 +62,32 @@ export async function POST(request: NextRequest) {
     }
 
     const data = JSON.parse(body);
-    console.log('Webhook payload:', data);
+    console.log('Webhook payload:', JSON.stringify(data, null, 2));
 
     // Process Instagram webhook events
     if (data.object === 'instagram') {
       console.log('Processing Instagram webhook events');
+      
+      if (!data.entry || !Array.isArray(data.entry)) {
+        console.log('No entry array in webhook data');
+        return new NextResponse('EVENT_RECEIVED', { status: 200 });
+      }
+
       for (const entry of data.entry) {
         // Handle comments
-        if (entry.changes) {
+        if (entry.changes && Array.isArray(entry.changes)) {
           console.log('Processing comment events');
           for (const change of entry.changes) {
-            if (change.field === 'comments') {
+            if (change.field === 'comments' && 
+                change.value && 
+                change.value.from && 
+                change.value.from.id && 
+                change.value.media && 
+                change.value.media.owner && 
+                change.value.media.owner.id) {
+              
               console.log('Comment event:', change.value);
               
-              // Get the Instagram user who made the comment
               const commenterId = change.value.from.id;
               const mediaOwnerId = change.value.media.owner.id;
 
@@ -86,27 +98,31 @@ export async function POST(request: NextRequest) {
               if (userDoc.exists()) {
                 const accessToken = userDoc.data().access_token;
 
-                // Send message to commenter
-                const response = await fetch(`https://graph.instagram.com/v21.0/${mediaOwnerId}/messages`, {
-                  method: 'POST',
-                  headers: {
-                    'Authorization': `Bearer ${accessToken}`,
-                    'Content-Type': 'application/json'
-                  },
-                  body: JSON.stringify({
-                    recipient: {
-                      id: commenterId
+                try {
+                  // Send message to commenter
+                  const response = await fetch(`https://graph.instagram.com/v21.0/${mediaOwnerId}/messages`, {
+                    method: 'POST',
+                    headers: {
+                      'Authorization': `Bearer ${accessToken}`,
+                      'Content-Type': 'application/json'
                     },
-                    message: {
-                      text: "meetings made super easy\nhttps://meetman.codestam.com"
-                    }
-                  })
-                });
+                    body: JSON.stringify({
+                      recipient: {
+                        id: commenterId
+                      },
+                      message: {
+                        text: "meetings made super easy\nhttps://meetman.codestam.com"
+                      }
+                    })
+                  });
 
-                if (!response.ok) {
-                  console.error('Failed to send message:', await response.text());
-                } else {
-                  console.log('Successfully sent message to commenter');
+                  if (!response.ok) {
+                    console.error('Failed to send message:', await response.text());
+                  } else {
+                    console.log('Successfully sent message to commenter');
+                  }
+                } catch (error) {
+                  console.error('Error sending message:', error);
                 }
               }
             }
@@ -114,9 +130,14 @@ export async function POST(request: NextRequest) {
         }
 
         // Handle messaging events
-        if (entry.messaging) {
+        if (entry.messaging && Array.isArray(entry.messaging)) {
           console.log('Processing messaging events');
           for (const event of entry.messaging) {
+            if (!event || !event.sender || !event.sender.id || !event.recipient || !event.recipient.id) {
+              console.log('Missing sender or recipient ID');
+              continue;
+            }
+
             const senderId = event.sender.id;
             const recipientId = event.recipient.id;
             const timestamp = event.timestamp;
@@ -125,27 +146,27 @@ export async function POST(request: NextRequest) {
               console.log('Message event:', {
                 senderId,
                 recipientId,
-                messageId: event.message.mid,
-                text: event.message.text,
-                attachments: event.message.attachments,
+                messageId: event.message?.mid,
+                text: event.message?.text,
+                attachments: event.message?.attachments,
                 timestamp
               });
             } else if (event.reaction) {
               console.log('Reaction event:', {
                 senderId,
                 recipientId,
-                messageId: event.reaction.mid,
-                action: event.reaction.action,
-                reaction: event.reaction.reaction,
+                messageId: event.reaction?.mid,
+                action: event.reaction?.action,
+                reaction: event.reaction?.reaction,
                 timestamp
               });
             } else if (event.postback) {
               console.log('Postback event:', {
                 senderId,
                 recipientId,
-                messageId: event.postback.mid,
-                title: event.postback.title,
-                payload: event.postback.payload,
+                messageId: event.postback?.mid,
+                title: event.postback?.title,
+                payload: event.postback?.payload,
                 timestamp
               });
             }
@@ -172,3 +193,4 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+// End of Selection
