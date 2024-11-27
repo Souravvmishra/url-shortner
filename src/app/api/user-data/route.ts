@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 // Constants for API endpoints and fields
 const INSTAGRAM_API_BASE = 'https://graph.instagram.com';
 const USER_FIELDS = 'id,username,account_type,media_count';
+const INSTAGRAM_GRAPH_VERSION = 'v21.0';
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,9 +19,11 @@ export async function GET(request: NextRequest) {
     }
 
     // Helper function for API calls
-    const fetchFromInstagram = async (endpoint: string, params: Record<string, string>) => {
+    const fetchFromInstagram = async (endpoint: string, params: Record<string, string>, method = 'GET') => {
       const queryString = new URLSearchParams({...params, access_token: accessToken}).toString();
-      const response = await fetch(`${INSTAGRAM_API_BASE}${endpoint}?${queryString}`);
+      const response = await fetch(`${INSTAGRAM_API_BASE}${endpoint}?${queryString}`, {
+        method
+      });
       
       if (!response.ok) {
         throw new Error(`Instagram API error: ${response.statusText}`);
@@ -39,6 +42,16 @@ export async function GET(request: NextRequest) {
         { error: "Failed to fetch user data", code: "USER_NOT_FOUND" },
         { status: 400 }
       );
+    }
+
+    // Subscribe to webhook events for the user
+    try {
+      await fetchFromInstagram(`/${INSTAGRAM_GRAPH_VERSION}/${userData.id}/subscribed_apps`, {
+        subscribed_fields: 'comments,messages'
+      }, 'POST');
+      console.log('Successfully subscribed to webhook events for user:', userData.id);
+    } catch (subscriptionError) {
+      console.error('Failed to subscribe to webhook events:', subscriptionError);
     }
 
     // Get user's media
