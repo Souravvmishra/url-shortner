@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
+import { firestore } from '@/services/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+
 // Get environment variables
 const APP_SECRET = process.env.INSTAGRAM_APP_SECRET;
 const VERIFY_TOKEN = process.env.INSTAGRAM_VERIFY_TOKEN;
@@ -65,6 +68,51 @@ export async function POST(request: NextRequest) {
     if (data.object === 'instagram') {
       console.log('Processing Instagram webhook events');
       for (const entry of data.entry) {
+        // Handle comments
+        if (entry.changes) {
+          console.log('Processing comment events');
+          for (const change of entry.changes) {
+            if (change.field === 'comments') {
+              console.log('Comment event:', change.value);
+              
+              // Get the Instagram user who made the comment
+              const commenterId = change.value.from.id;
+              const mediaOwnerId = change.value.media.owner.id;
+
+              // Get access token from Firestore
+              const userRef = doc(firestore, 'instagram_users', mediaOwnerId);
+              const userDoc = await getDoc(userRef);
+              
+              if (userDoc.exists()) {
+                const accessToken = userDoc.data().access_token;
+
+                // Send message to commenter
+                const response = await fetch(`https://graph.instagram.com/v21.0/${mediaOwnerId}/messages`, {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify({
+                    recipient: {
+                      id: commenterId
+                    },
+                    message: {
+                      text: "meetings made super easy\nhttps://meetman.codestam.com"
+                    }
+                  })
+                });
+
+                if (!response.ok) {
+                  console.error('Failed to send message:', await response.text());
+                } else {
+                  console.log('Successfully sent message to commenter');
+                }
+              }
+            }
+          }
+        }
+
         // Handle messaging events
         if (entry.messaging) {
           console.log('Processing messaging events');
@@ -74,7 +122,6 @@ export async function POST(request: NextRequest) {
             const timestamp = event.timestamp;
 
             if (event.message) {
-              // Handle messages
               console.log('Message event:', {
                 senderId,
                 recipientId,
@@ -83,9 +130,7 @@ export async function POST(request: NextRequest) {
                 attachments: event.message.attachments,
                 timestamp
               });
-
             } else if (event.reaction) {
-              // Handle message reactions
               console.log('Reaction event:', {
                 senderId,
                 recipientId,
@@ -94,9 +139,7 @@ export async function POST(request: NextRequest) {
                 reaction: event.reaction.reaction,
                 timestamp
               });
-
             } else if (event.postback) {
-              // Handle postbacks from buttons/ice breakers
               console.log('Postback event:', {
                 senderId,
                 recipientId,
@@ -108,21 +151,10 @@ export async function POST(request: NextRequest) {
             }
           }
         }
-
-        // Handle comments
-        if (entry.changes) {
-          console.log('Processing comment events');
-          for (const change of entry.changes) {
-            if (change.field === 'comments') {
-              console.log('Comment event:', change.value);
-            }
-          }
-        }
       }
     }
 
     console.log('Webhook processing completed successfully');
-    // Return 200 OK for successful processing
     return new NextResponse('EVENT_RECEIVED', { status: 200 });
 
   } catch (error) {
