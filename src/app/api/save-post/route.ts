@@ -22,12 +22,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Create document reference with user ID and post ID
-    const postRef = doc(firestore, 'users', user.id, 'saved_posts', post.id);
+    const postRef = doc(firestore, 'user_posts', post.id);
 
     // Save post data
     await setDoc(postRef, {
       ...post,
-      userId: user.id,
+      ...user,
       saved_at: new Date().toISOString(),
       accessToken
     });
