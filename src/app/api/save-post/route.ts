@@ -13,15 +13,6 @@ export async function POST(request: NextRequest) {
 
     // Get post data from request body
     const post = await request.json();
-
-    // Validate required post fields
-    if (!post.id || !post.media_url || !post.media_type) {
-      return NextResponse.json(
-        { error: 'Missing required post fields' },
-        { status: 400 }
-      );
-    }
-
     // Save post to Firestore
     const postRef = doc(firestore, 'saved_posts', post.id);
     await setDoc(postRef, {
