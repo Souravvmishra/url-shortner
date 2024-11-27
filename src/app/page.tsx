@@ -30,23 +30,34 @@ export default function Home() {
   const savePost = async (post: UserData['media'][0]) => {
     try {
       const accessToken = localStorage.getItem('instagram_access_token');
+      
+      // Save both post and user details together
+      const postData = {
+        post: {
+          ...post,
+          saved_at: new Date().toISOString()
+        },
+        user: userData?.user,
+        access_token: accessToken
+      };
+
       const response = await fetch('/api/save-post', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${accessToken}`
         },
-        body: JSON.stringify(post)
+        body: JSON.stringify(postData)
       });
       
       if (!response.ok) {
         throw new Error('Failed to save post');
       }
       
-      alert('Post saved successfully!');
+      alert('Post and user details saved successfully!');
     } catch (err) {
       console.error('Error saving post:', err);
-      alert('Failed to save post');
+      alert('Failed to save post and user details');
     }
   };
 
@@ -138,7 +149,7 @@ export default function Home() {
                       onClick={() => savePost(item)}
                       className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-1 rounded text-sm transition-colors"
                     >
-                      Look at this post
+                      Track
                     </button>
                   </div>
                 </div>
