@@ -31,13 +31,16 @@ export default function Home() {
     try {
       const accessToken = localStorage.getItem('instagram_access_token');
       
-      // Save both post and user details together
+      if (!accessToken || !userData?.user) {
+        throw new Error('Missing required data');
+      }
+
       const postData = {
         post: {
           ...post,
           saved_at: new Date().toISOString()
         },
-        user: userData?.user,
+        user: userData.user,
         access_token: accessToken
       };
 
@@ -64,7 +67,6 @@ export default function Home() {
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        // Check if access token exists in localStorage
         const accessToken = localStorage.getItem('instagram_access_token');
         
         if (!accessToken) {
@@ -77,15 +79,16 @@ export default function Home() {
             'Authorization': `Bearer ${accessToken}`
           }
         });
+
         if (!response.ok) {
           if (response.status === 401) {
-            // If unauthorized, clear token and redirect to sign in
             localStorage.removeItem('instagram_access_token');
             router.push('/sign-in');
             return;
           }
           throw new Error('Failed to fetch user data');
         }
+
         const data = await response.json();
         setUserData(data);
       } catch (err) {
@@ -95,13 +98,11 @@ export default function Home() {
       }
     };
 
-    // Check URL for access token on initial load
     const urlParams = new URLSearchParams(window.location.search);
     const tokenFromUrl = urlParams.get('access_token');
     
     if (tokenFromUrl) {
       localStorage.setItem('instagram_access_token', tokenFromUrl);
-      // Clean up URL
       window.history.replaceState({}, document.title, window.location.pathname);
     }
 
@@ -127,12 +128,13 @@ export default function Home() {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {userData?.media?.map((item) => (
-              <div key={item.id} className="border rounded-lg overflow-hidden">
+            {userData.media?.map((item) => (
+              <div key={item.id} className="border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
                 <img 
                   src={item.media_type === 'VIDEO' ? item.thumbnail_url || item.media_url : item.media_url}
                   alt={item.caption || 'Instagram media'}
                   className="w-full h-64 object-cover"
+                  loading="lazy"
                 />
                 <div className="p-4">
                   <p className="text-sm line-clamp-2">{item.caption}</p>
@@ -141,13 +143,15 @@ export default function Home() {
                       href={item.permalink}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-blue-500 text-sm"
+                      className="text-blue-500 hover:text-blue-600 text-sm transition-colors"
+                      aria-label="View post on Instagram"
                     >
                       View on Instagram
                     </a>
                     <button
                       onClick={() => savePost(item)}
                       className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-1 rounded text-sm transition-colors"
+                      aria-label="Track this post"
                     >
                       Track
                     </button>

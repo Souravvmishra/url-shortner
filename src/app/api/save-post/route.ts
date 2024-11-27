@@ -12,13 +12,24 @@ export async function POST(request: NextRequest) {
     const accessToken = authHeader.split(' ')[1];
 
     // Get post data from request body
-    const post = await request.json();
-    // Save post to Firestore
-    const postRef = doc(firestore, 'saved_posts', post.id);
+    const { post, user } = await request.json();
+
+    if (!post?.id || !user?.id) {
+      return NextResponse.json(
+        { error: 'Missing required post or user data' },
+        { status: 400 }
+      );
+    }
+
+    // Create document reference with user ID and post ID
+    const postRef = doc(firestore, 'users', user.id, 'saved_posts', post.id);
+
+    // Save post data
     await setDoc(postRef, {
       ...post,
+      userId: user.id,
       saved_at: new Date().toISOString(),
-      access_token: accessToken
+      accessToken
     });
 
     return NextResponse.json({ success: true });
