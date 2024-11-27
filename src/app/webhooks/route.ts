@@ -78,51 +78,56 @@ export async function POST(request: NextRequest) {
         if (entry.changes && Array.isArray(entry.changes)) {
           console.log('Processing comment events');
           for (const change of entry.changes) {
-            if (change.field === 'comments' && 
-                change.value && 
-                change.value.from && 
-                change.value.from.id && 
-                change.value.media && 
-                change.value.media.owner && 
-                change.value.media.owner.id) {
-              
+            if (change.field === 'comments' && change.value) {
               console.log('Comment event:', change.value);
               
-              const commenterId = change.value.from.id;
-              const mediaOwnerId = change.value.media.owner.id;
+              const commenterId = change.value.from?.id;
+              const commenterUsername = change.value.from?.username;
+              const mediaId = change.value.media?.id;
 
-              // Get access token from Firestore
-              const userRef = doc(firestore, 'instagram_users', mediaOwnerId);
-              const userDoc = await getDoc(userRef);
-              
-              if (userDoc.exists()) {
-                const accessToken = userDoc.data().access_token;
-
+              if (commenterId && mediaId) {
                 try {
-                  // Send message to commenter
-                  const response = await fetch(`https://graph.instagram.com/v21.0/${mediaOwnerId}/messages`, {
-                    method: 'POST',
-                    headers: {
-                      'Authorization': `Bearer ${accessToken}`,
-                      'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                      recipient: {
-                        id: commenterId
-                      },
-                      message: {
-                        text: "meetings made super easy\nhttps://meetman.codestam.com"
-                      }
-                    })
-                  });
+                  // Get post details from Firestore using media ID
+                  const postRef = doc(firestore, 'user_posts', mediaId);
+                  const postDoc = await getDoc(postRef);
+                  
+                  if (postDoc.exists()) {
+                    const postData = postDoc.data();
+                    const userData = {
+                      id: postData.id,
+                      username: postData.username,
+                      account_type: postData.account_type,
+                      media_count: postData.media_count
+                    };
+                    const accessToken = postData.accessToken;
 
-                  if (!response.ok) {
-                    console.error('Failed to send message:', await response.text());
+                    // Send message to commenter using post owner's details
+                    const response = await fetch(`https://graph.instagram.com/v21.0/${userData.id}/messages`, {
+                      method: 'POST',
+                      headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json'
+                      },
+                      body: JSON.stringify({
+                        recipient: {
+                          id: commenterId
+                        },
+                        message: {
+                          text: `Hi ${commenterUsername}! Thanks for your comment on ${userData.username}'s post. Check out our app at https://meetman.codestam.com`
+                        }
+                      })
+                    });
+
+                    if (!response.ok) {
+                      console.error('Failed to send message:', await response.text());
+                    } else {
+                      console.log('Successfully sent message to commenter:', commenterUsername);
+                    }
                   } else {
-                    console.log('Successfully sent message to commenter');
+                    console.log('Post not found in database:', mediaId);
                   }
                 } catch (error) {
-                  console.error('Error sending message:', error);
+                  console.error('Error processing comment:', error);
                 }
               }
             }
@@ -193,4 +198,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-// End of Selection
