@@ -81,11 +81,10 @@ export async function POST(request: NextRequest) {
             if (change.field === 'comments' && change.value) {
               console.log('Comment event:', change.value);
               
-              const commenterId = change.value.from?.id;
-              const commenterUsername = change.value.from?.username;
+              const commentId = change.value.id;
               const mediaId = change.value.media?.id;
 
-              if (commenterId && mediaId) {
+              if (commentId && mediaId) {
                 try {
                   // Get post details from Firestore using media ID
                   const postRef = doc(firestore, 'user_posts', mediaId);
@@ -93,16 +92,11 @@ export async function POST(request: NextRequest) {
                   
                   if (postDoc.exists()) {
                     const postData = postDoc.data();
-                    const userData = {
-                      id: postData.id,
-                      username: postData.username,
-                      account_type: postData.account_type,
-                      media_count: postData.media_count
-                    };
                     const accessToken = postData.accessToken;
+                    const igProUserId = postData.id;
 
-                    // Send message to commenter using post owner's details
-                    const response = await fetch(`https://graph.instagram.com/v21.0/${userData.id}/messages`, {
+                    // Send private reply using Instagram Graph API
+                    const response = await fetch(`https://graph.instagram.com/${igProUserId}/messages`, {
                       method: 'POST',
                       headers: {
                         'Authorization': `Bearer ${accessToken}`,
@@ -110,18 +104,18 @@ export async function POST(request: NextRequest) {
                       },
                       body: JSON.stringify({
                         recipient: {
-                          id: commenterId
+                          comment_id: commentId
                         },
                         message: {
-                          text: `Hi ${commenterUsername}! Thanks for your comment on ${userData.username}'s post. Check out our app at https://meetman.codestam.com`
+                          text: `Thanks for your comment! Check out our app at https://meetman.codestam.com`
                         }
                       })
                     });
 
                     if (!response.ok) {
-                      console.error('Failed to send message:', await response.text());
+                      console.error('Failed to send private reply:', await response.text());
                     } else {
-                      console.log('Successfully sent message to commenter:', commenterUsername);
+                      console.log('Successfully sent private reply to comment:', commentId);
                     }
                   } else {
                     console.log('Post not found in database:', mediaId);
